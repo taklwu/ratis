@@ -143,6 +143,14 @@ public final class VersionInfo {
     }
   }
 
+  /**
+   * Get the current ratis version.
+   * @return the current ratis version string.
+   */
+  public static String getSoftwareInfoVersion() {
+    return VersionInfo.load(VersionInfo.class).softwareInfos.getOrDefault(SoftwareInfo.VERSION);
+  }
+
   public static void main(String[] args) {
     VersionInfo.load(VersionInfo.class).printStartupMessages(":", System.out::println);
   }
