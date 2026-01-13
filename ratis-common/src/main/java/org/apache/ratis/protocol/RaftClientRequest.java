@@ -24,6 +24,7 @@ import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto.TypeCase;
 import org.apache.ratis.proto.RaftProtos.ReadRequestTypeProto;
 import org.apache.ratis.proto.RaftProtos.ReplicationLevel;
 import org.apache.ratis.proto.RaftProtos.SlidingWindowEntry;
+import org.apache.ratis.proto.RaftProtos.SpanContextProto;
 import org.apache.ratis.proto.RaftProtos.StaleReadRequestTypeProto;
 import org.apache.ratis.proto.RaftProtos.WatchRequestTypeProto;
 import org.apache.ratis.proto.RaftProtos.WriteRequestTypeProto;
@@ -305,6 +306,7 @@ public class RaftClientRequest extends RaftClientMessage {
     private SlidingWindowEntry slidingWindowEntry;
     private RoutingTable routingTable;
     private long timeoutMs;
+    private SpanContextProto spanContext;
 
     public RaftClientRequest build() {
       return new RaftClientRequest(this);
@@ -366,6 +368,11 @@ public class RaftClientRequest extends RaftClientMessage {
       this.timeoutMs = timeoutMs;
       return this;
     }
+
+    public Builder setSpanContext(SpanContextProto spanContext) {
+      this.spanContext = spanContext;
+      return this;
+    }
   }
 
   public static Builder newBuilder() {
@@ -382,6 +389,7 @@ public class RaftClientRequest extends RaftClientMessage {
         .setMessage(message)
         .setType(RaftClientRequest.writeRequestType())
         .setSlidingWindowEntry(r.getSlidingWindowEntry())
+        .setSpanContext(r.getSpanContext())
         .build();
   }
 
@@ -397,26 +405,31 @@ public class RaftClientRequest extends RaftClientMessage {
 
   private final boolean toLeader;
 
+  private SpanContextProto spanContext;
+
   /** Construct a request for sending to the given server. */
-  protected RaftClientRequest(ClientId clientId, RaftPeerId serverId, RaftGroupId groupId, long callId, Type type) {
+  protected RaftClientRequest(ClientId clientId, RaftPeerId serverId, RaftGroupId groupId, long callId, Type type,
+      SpanContextProto spanContext) {
     this(newBuilder()
         .setClientId(clientId)
         .setServerId(serverId)
         .setGroupId(groupId)
         .setCallId(callId)
-        .setType(type));
+        .setType(type)
+        .setSpanContext(spanContext));
   }
 
   /** Construct a request for sending to the Leader. */
   protected RaftClientRequest(ClientId clientId, RaftPeerId leaderId, RaftGroupId groupId, long callId, Type type,
-      long timeoutMs) {
+      long timeoutMs, SpanContextProto spanContext) {
     this(newBuilder()
         .setClientId(clientId)
         .setLeaderId(leaderId)
         .setGroupId(groupId)
         .setCallId(callId)
         .setType(type)
-        .setTimeoutMs(timeoutMs));
+        .setTimeoutMs(timeoutMs)
+        .setSpanContext(spanContext));
   }
 
   private RaftClientRequest(Builder b) {
@@ -429,6 +442,7 @@ public class RaftClientRequest extends RaftClientMessage {
     this.slidingWindowEntry = b.slidingWindowEntry;
     this.routingTable = b.routingTable;
     this.timeoutMs = b.timeoutMs;
+    this.spanContext = b.spanContext;
   }
 
   @Override
@@ -470,6 +484,10 @@ public class RaftClientRequest extends RaftClientMessage {
 
   public long getTimeoutMs() {
     return timeoutMs;
+  }
+
+  public SpanContextProto getSpanContext() {
+    return spanContext;
   }
 
   @Override

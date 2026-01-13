@@ -128,6 +128,7 @@ public interface ClientProtoUtils {
 
     Optional.ofNullable(request.getSlidingWindowEntry()).ifPresent(b::setSlidingWindowEntry);
     Optional.ofNullable(request.getRoutingTable()).map(RoutingTable::toProto).ifPresent(b::setRoutingTable);
+    Optional.ofNullable(request.getSpanContext()).ifPresent(b::setSpanContext);
 
     return b.setCallId(request.getCallId())
         .setToLeader(request.isToLeader())
@@ -196,6 +197,7 @@ public interface ClientProtoUtils {
         .setRepliedCallIds(request.getRepliedCallIdsList())
         .setRoutingTable(getRoutingTable(request))
         .setTimeoutMs(request.getTimeoutMs())
+        .setSpanContext(request.getSpanContext())
         .build();
   }
 

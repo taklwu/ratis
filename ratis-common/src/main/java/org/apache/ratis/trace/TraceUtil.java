@@ -24,10 +24,16 @@ import io.opentelemetry.api.trace.StatusCode;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapPropagator;
+import io.opentelemetry.context.propagation.TextMapGetter;
+import org.apache.ratis.proto.RaftProtos;
 import org.apache.ratis.util.FutureUtils;
 import org.apache.ratis.util.VersionInfo;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
@@ -224,5 +230,46 @@ public final class TraceUtil {
     } finally {
       span.end();
     }
+  }
+
+  private static final TextMapPropagator PROPAGATOR =
+      GlobalOpenTelemetry.getPropagators().getTextMapPropagator();
+
+  public static RaftProtos.SpanContextProto injectContextToProto(Context context) {
+    Map<String, String> carrier = new HashMap<>();
+    PROPAGATOR.inject(context, carrier, (map, key, value) -> map.put(key, value));
+    return RaftProtos.SpanContextProto.newBuilder().putAllContext(carrier).build();
+  }
+
+  public static Context extractContextFromProto(RaftProtos.SpanContextProto proto) {
+    if (proto == null || proto.getContextMap().isEmpty()) {
+      return Context.current();
+    }
+    final TextMapGetter<RaftProtos.SpanContextProto> getter = SpanContextGetter.INSTANCE;
+    return PROPAGATOR.extract(Context.current(), proto, getter);
+  }
+}
+
+class SpanContextInjector implements io.opentelemetry.context.propagation.TextMapSetter<RaftProtos.SpanContextProto.Builder> {
+  static final SpanContextInjector INSTANCE = new SpanContextInjector();
+
+  @Override
+  public void set(RaftProtos.SpanContextProto.Builder carrier, String key, String value) {
+    carrier.putContext(key, value);
+  }
+}
+
+class SpanContextGetter implements TextMapGetter<RaftProtos.SpanContextProto> {
+  static final SpanContextGetter INSTANCE = new SpanContextGetter();
+
+  @Override
+  public Iterable<String> keys(RaftProtos.SpanContextProto carrier) {
+    return carrier.getContextMap().keySet();
+  }
+
+  @Override
+  public String get(RaftProtos.SpanContextProto carrier, String key) {
+    return Optional.ofNullable(carrier).map(RaftProtos.SpanContextProto::getContextMap)
+        .map(map -> map.get(key)).orElse(null);
   }
 }

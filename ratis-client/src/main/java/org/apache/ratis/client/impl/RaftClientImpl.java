@@ -17,6 +17,7 @@
  */
 package org.apache.ratis.client.impl;
 
+import io.opentelemetry.context.Context;
 import org.apache.ratis.client.DataStreamClient;
 import org.apache.ratis.client.RaftClient;
 import org.apache.ratis.client.RaftClientRpc;
@@ -27,6 +28,7 @@ import org.apache.ratis.client.retry.ClientRetryEvent;
 import org.apache.ratis.conf.Parameters;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.proto.RaftProtos.SlidingWindowEntry;
+import org.apache.ratis.proto.RaftProtos.SpanContextProto;
 import org.apache.ratis.protocol.ClientId;
 import org.apache.ratis.protocol.Message;
 import org.apache.ratis.protocol.RaftClientReply;
@@ -43,6 +45,7 @@ import org.apache.ratis.protocol.exceptions.ResourceUnavailableException;
 import org.apache.ratis.retry.RetryPolicy;
 import org.apache.ratis.thirdparty.com.google.common.cache.Cache;
 import org.apache.ratis.thirdparty.com.google.common.cache.CacheBuilder;
+import org.apache.ratis.trace.TraceUtil;
 import org.apache.ratis.util.CollectionUtils;
 import org.apache.ratis.util.IOUtils;
 import org.apache.ratis.util.JavaUtils;
@@ -289,12 +292,14 @@ public final class RaftClientImpl implements RaftClient {
       b.setLeaderId(getLeaderId())
        .setRepliedCallIds(repliedCallIds.get(callId));
     }
+    final SpanContextProto spanContext = TraceUtil.injectContextToProto(Context.current());
     return b.setClientId(clientId)
         .setGroupId(groupId)
         .setCallId(callId)
         .setMessage(message)
         .setType(type)
         .setSlidingWindowEntry(slidingWindowEntry)
+        .setSpanContext(spanContext)
         .build();
   }
 
