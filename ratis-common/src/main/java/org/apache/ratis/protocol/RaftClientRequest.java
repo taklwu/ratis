@@ -17,6 +17,7 @@
  */
 package org.apache.ratis.protocol;
 
+import io.opentelemetry.context.Context;
 import org.apache.ratis.proto.RaftProtos.DataStreamRequestTypeProto;
 import org.apache.ratis.proto.RaftProtos.ForwardRequestTypeProto;
 import org.apache.ratis.proto.RaftProtos.MessageStreamRequestTypeProto;
@@ -28,6 +29,7 @@ import org.apache.ratis.proto.RaftProtos.SpanContextProto;
 import org.apache.ratis.proto.RaftProtos.StaleReadRequestTypeProto;
 import org.apache.ratis.proto.RaftProtos.WatchRequestTypeProto;
 import org.apache.ratis.proto.RaftProtos.WriteRequestTypeProto;
+import org.apache.ratis.trace.TraceUtil;
 import org.apache.ratis.util.Preconditions;
 import org.apache.ratis.util.ProtoUtils;
 
@@ -408,20 +410,19 @@ public class RaftClientRequest extends RaftClientMessage {
   private SpanContextProto spanContext;
 
   /** Construct a request for sending to the given server. */
-  protected RaftClientRequest(ClientId clientId, RaftPeerId serverId, RaftGroupId groupId, long callId, Type type,
-      SpanContextProto spanContext) {
+  protected RaftClientRequest(ClientId clientId, RaftPeerId serverId, RaftGroupId groupId, long callId, Type type) {
     this(newBuilder()
         .setClientId(clientId)
         .setServerId(serverId)
         .setGroupId(groupId)
         .setCallId(callId)
         .setType(type)
-        .setSpanContext(spanContext));
+        .setSpanContext(TraceUtil.injectContextToProto(Context.current())));
   }
 
   /** Construct a request for sending to the Leader. */
   protected RaftClientRequest(ClientId clientId, RaftPeerId leaderId, RaftGroupId groupId, long callId, Type type,
-      long timeoutMs, SpanContextProto spanContext) {
+      long timeoutMs) {
     this(newBuilder()
         .setClientId(clientId)
         .setLeaderId(leaderId)
@@ -429,7 +430,7 @@ public class RaftClientRequest extends RaftClientMessage {
         .setCallId(callId)
         .setType(type)
         .setTimeoutMs(timeoutMs)
-        .setSpanContext(spanContext));
+        .setSpanContext(TraceUtil.injectContextToProto(Context.current())));
   }
 
   private RaftClientRequest(Builder b) {
