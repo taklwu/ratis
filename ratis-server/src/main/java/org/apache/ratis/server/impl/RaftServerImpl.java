@@ -19,6 +19,7 @@ package org.apache.ratis.server.impl;
 
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.StatusCode;
+import io.opentelemetry.context.Context;
 import io.opentelemetry.context.Scope;
 import org.apache.ratis.client.impl.ClientProtoUtils;
 import org.apache.ratis.conf.RaftProperties;
@@ -1432,7 +1433,8 @@ class RaftServerImpl implements RaftServer.Division,
 
   @Override
   public RequestVoteReplyProto requestVote(RequestVoteRequestProto r) throws IOException {
-    final Span span = TraceUtil.createSpan("raft.requestVote");
+    final Context remoteContext = TraceUtil.extractContextFromProto(r.getServerRequest().getSpanContext());
+    final Span span = TraceUtil.createRemoteSpan("raft.requestVote", remoteContext);
     span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
     try (Scope scope = span.makeCurrent()) {
       span.setAttribute(RatisAttributes.ATTR_CALLER_ID, r.getServerRequest().getRequestorId().toString());
@@ -1500,7 +1502,8 @@ class RaftServerImpl implements RaftServer.Division,
 
   @Override
   public AppendEntriesReplyProto appendEntries(AppendEntriesRequestProto r) throws IOException {
-    final Span span = TraceUtil.createSpan("raft.appendEntries");
+    final Context remoteContext = TraceUtil.extractContextFromProto(r.getServerRequest().getSpanContext());
+    final Span span = TraceUtil.createRemoteSpan("raft.appendEntries", remoteContext);
     span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
     try (Scope scope = span.makeCurrent()) {
       span.setAttribute(RatisAttributes.ATTR_CALLER_ID, r.getServerRequest().getRequestorId().toString());
