@@ -30,7 +30,19 @@ public final class RatisAttributes {
 
   public static final AttributeKey<String> ATTR_MEMBER_ID = AttributeKey.stringKey("raft.member.id");
   public static final AttributeKey<String> ATTR_CALLER_ID = AttributeKey.stringKey("raft.caller.id");
+  public static final AttributeKey<String> RPC_SYSTEM = AttributeKey.stringKey("rpc.system");
+  public static final AttributeKey<String> RPC_SERVICE = AttributeKey.stringKey("rpc.service");
+  public static final AttributeKey<String> RPC_METHOD = AttributeKey.stringKey("rpc.method");
+  public static final AttributeKey<String> PEER_ID = AttributeKey.stringKey("rpc.peer.id");
+  public static final AttributeKey<String> RPC_PROXY_NAME = AttributeKey.stringKey("rpc.proxy.name");
 
+  /**
+   * These are values used with {@link #RPC_SYSTEM}. Only a single value for now; more to come as we
+   * add tracing over our gateway components.
+   */
+  public enum RpcSystem {
+    RATIS_RPC,
+  }
 
   private RatisAttributes() {
   }

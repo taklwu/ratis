@@ -17,8 +17,11 @@
  */
 package org.apache.ratis.grpc.client;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Scope;
 import org.apache.ratis.client.impl.ClientProtoUtils;
 import org.apache.ratis.client.impl.RaftClientRpcWithProxy;
+import org.apache.ratis.client.trace.IpcClientSpanBuilder;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.grpc.GrpcUtil;
@@ -36,6 +39,7 @@ import org.apache.ratis.proto.RaftProtos.TransferLeadershipRequestProto;
 import org.apache.ratis.proto.RaftProtos.SnapshotManagementRequestProto;
 import org.apache.ratis.proto.RaftProtos.LeaderElectionManagementRequestProto;
 import org.apache.ratis.thirdparty.io.netty.handler.ssl.SslContext;
+import org.apache.ratis.trace.TraceUtil;
 import org.apache.ratis.util.IOUtils;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.PeerProxyMap;
@@ -46,6 +50,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Supplier;
 
 public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClient> {
   public static final Logger LOG = LoggerFactory.getLogger(GrpcClientRpc.class);
@@ -67,8 +72,14 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
     final RaftPeerId serverId = request.getServerId();
     try {
       final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
+      final Supplier<Span> supplier = new IpcClientSpanBuilder()
+          .setMethod(request.getType().toString(),
+          request.getClass().getName() + "/sendRequestAsync")
+          .setProxyName(proxy.getName())
+          .setPeerId(serverId.toString());
       // Reuse the same grpc stream for all async calls.
-      return proxy.getOrderedStreamObservers().onNext(request);
+      return TraceUtil.tracedFuture(() -> proxy.getOrderedStreamObservers().onNext(request),
+          supplier);
     } catch (Exception e) {
       return JavaUtils.completeExceptionally(e);
     }
@@ -79,8 +90,14 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
     final RaftPeerId serverId = request.getServerId();
     try {
       final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
+      final Supplier<Span> supplier = new IpcClientSpanBuilder()
+          .setMethod(request.getType().toString(),
+              request.getClass().getName() + "/sendRequestAsyncUnordered")
+          .setProxyName(proxy.getName())
+          .setPeerId(serverId.toString());
       // Reuse the same grpc stream for all async calls.
-      return proxy.getUnorderedAsyncStreamObservers().onNext(request);
+      return TraceUtil.tracedFuture(() -> proxy.getUnorderedAsyncStreamObservers().onNext(request),
+          supplier);
     } catch (Exception e) {
       LOG.error(clientId + ": Failed " + request, e);
       return JavaUtils.completeExceptionally(e);
@@ -92,48 +109,55 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
       throws IOException {
     final RaftPeerId serverId = request.getServerId();
     final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
-    if (request instanceof GroupManagementRequest) {
-      final GroupManagementRequestProto proto = ClientProtoUtils.toGroupManagementRequestProto(
-          (GroupManagementRequest)request);
-      return ClientProtoUtils.toRaftClientReply(proxy.groupAdd(proto));
-    } else if (request instanceof SetConfigurationRequest) {
-      final SetConfigurationRequestProto setConf = ClientProtoUtils.toSetConfigurationRequestProto(
-          (SetConfigurationRequest) request);
-      return ClientProtoUtils.toRaftClientReply(proxy.setConfiguration(setConf));
-    } else if (request instanceof GroupListRequest){
-      final GroupListRequestProto proto = ClientProtoUtils.toGroupListRequestProto(
-          (GroupListRequest) request);
-      return ClientProtoUtils.toGroupListReply(proxy.groupList(proto));
-    } else if (request instanceof GroupInfoRequest){
-      final GroupInfoRequestProto proto = ClientProtoUtils.toGroupInfoRequestProto(
-          (GroupInfoRequest) request);
-      return ClientProtoUtils.toGroupInfoReply(proxy.groupInfo(proto));
-    } else if (request instanceof TransferLeadershipRequest) {
-      final TransferLeadershipRequestProto proto = ClientProtoUtils.toTransferLeadershipRequestProto(
-          (TransferLeadershipRequest) request);
-      return ClientProtoUtils.toRaftClientReply(proxy.transferLeadership(proto));
-    } else if (request instanceof SnapshotManagementRequest) {
-      final SnapshotManagementRequestProto proto = ClientProtoUtils.toSnapshotManagementRequestProto
-          ((SnapshotManagementRequest) request);
-      return ClientProtoUtils.toRaftClientReply(proxy.snapshotManagement(proto));
-    } else if (request instanceof LeaderElectionManagementRequest) {
-      final LeaderElectionManagementRequestProto proto = ClientProtoUtils.toLeaderElectionManagementRequestProto
-          ((LeaderElectionManagementRequest) request);
-      return ClientProtoUtils.toRaftClientReply(proxy.leaderElectionManagement(proto));
-    } else {
-      final CompletableFuture<RaftClientReply> f = sendRequest(request, proxy);
-      // TODO: timeout support
-      try {
-        return f.get();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new InterruptedIOException(
-            "Interrupted while waiting for response of request " + request);
-      } catch (ExecutionException e) {
-        if (LOG.isTraceEnabled()) {
-          LOG.trace(clientId + ": failed " + request, e);
+    final Span span = new IpcClientSpanBuilder()
+        .setMethod(request.getType().toString(),
+            request.getClass().getName() + "/sendRequest")
+        .setPeerId(serverId.toString())
+        .setProxyName(proxy.getName())
+        .build();
+    try (Scope scope = span.makeCurrent()) {
+      if (request instanceof GroupManagementRequest) {
+        final GroupManagementRequestProto proto =
+            ClientProtoUtils.toGroupManagementRequestProto((GroupManagementRequest) request);
+        return ClientProtoUtils.toRaftClientReply(proxy.groupAdd(proto));
+      } else if (request instanceof SetConfigurationRequest) {
+        final SetConfigurationRequestProto setConf =
+            ClientProtoUtils.toSetConfigurationRequestProto((SetConfigurationRequest) request);
+        return ClientProtoUtils.toRaftClientReply(proxy.setConfiguration(setConf));
+      } else if (request instanceof GroupListRequest) {
+        final GroupListRequestProto proto = ClientProtoUtils.toGroupListRequestProto((GroupListRequest) request);
+        return ClientProtoUtils.toGroupListReply(proxy.groupList(proto));
+      } else if (request instanceof GroupInfoRequest) {
+        final GroupInfoRequestProto proto = ClientProtoUtils.toGroupInfoRequestProto((GroupInfoRequest) request);
+        return ClientProtoUtils.toGroupInfoReply(proxy.groupInfo(proto));
+      } else if (request instanceof TransferLeadershipRequest) {
+        final TransferLeadershipRequestProto proto =
+            ClientProtoUtils.toTransferLeadershipRequestProto((TransferLeadershipRequest) request);
+        return ClientProtoUtils.toRaftClientReply(proxy.transferLeadership(proto));
+      } else if (request instanceof SnapshotManagementRequest) {
+        final SnapshotManagementRequestProto proto =
+            ClientProtoUtils.toSnapshotManagementRequestProto((SnapshotManagementRequest) request);
+        return ClientProtoUtils.toRaftClientReply(proxy.snapshotManagement(proto));
+      } else if (request instanceof LeaderElectionManagementRequest) {
+        final LeaderElectionManagementRequestProto proto =
+            ClientProtoUtils.toLeaderElectionManagementRequestProto((LeaderElectionManagementRequest) request);
+        return ClientProtoUtils.toRaftClientReply(proxy.leaderElectionManagement(proto));
+      } else {
+        final CompletableFuture<RaftClientReply> f = sendRequest(request, proxy);
+        // TODO: timeout support
+        try {
+          return f.get();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new InterruptedIOException("Interrupted while waiting for response of request " + request);
+        } catch (ExecutionException e) {
+          if (LOG.isTraceEnabled()) {
+            LOG.trace(clientId + ": failed " + request, e);
+          }
+          throw IOUtils.toIOException(e);
+        } finally {
+          span.end();
         }
-        throw IOUtils.toIOException(e);
       }
     }
   }

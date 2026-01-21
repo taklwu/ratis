@@ -17,9 +17,12 @@
  */
 package org.apache.ratis.netty.client;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.context.Scope;
 import org.apache.ratis.client.RaftClientConfigKeys;
 import org.apache.ratis.client.impl.ClientProtoUtils;
 import org.apache.ratis.client.impl.RaftClientRpcWithProxy;
+import org.apache.ratis.client.trace.IpcClientSpanBuilder;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.netty.NettyRpcProxy;
 import org.apache.ratis.protocol.*;
@@ -30,6 +33,7 @@ import org.apache.ratis.proto.RaftProtos.GroupManagementRequestProto;
 import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
 import org.apache.ratis.proto.netty.NettyProtos.RaftNettyServerRequestProto;
 import org.apache.ratis.protocol.exceptions.TimeoutIOException;
+import org.apache.ratis.trace.TraceUtil;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.TimeDuration;
 import org.apache.ratis.util.TimeoutExecutor;
@@ -38,6 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 public class NettyClientRpc extends RaftClientRpcWithProxy<NettyRpcProxy> {
 
@@ -62,43 +67,50 @@ public class NettyClientRpc extends RaftClientRpcWithProxy<NettyRpcProxy> {
       final RaftNettyServerRequestProto serverRequestProto = buildRequestProto(request);
       final CompletableFuture<RaftClientReply> replyFuture = new CompletableFuture<>();
 
-      proxy.sendAsync(serverRequestProto).thenApply(replyProto -> {
-        if (request instanceof GroupListRequest) {
-          return ClientProtoUtils.toGroupListReply(replyProto.getGroupListReply());
-        } else if (request instanceof GroupInfoRequest) {
-          return ClientProtoUtils.toGroupInfoReply(replyProto.getGroupInfoReply());
-        } else {
-          return ClientProtoUtils.toRaftClientReply(replyProto.getRaftClientReply());
-        }
-      }).whenComplete((reply, e) -> {
-        if (e == null) {
-          if (reply == null) {
-            e = new NullPointerException("Both reply==null && e==null");
+      final Supplier<Span> supplier = new IpcClientSpanBuilder()
+          .setMethod(serverRequestProto.getDescriptorForType().getFullName() + "/" + request.getType().toString(),
+              request.getClass().getName() + "/sendRequestAsync")
+          .setProxyName(proxy.toString())
+          .setPeerId(serverId.toString());
+      return TraceUtil.tracedFuture(() -> {
+        proxy.sendAsync(serverRequestProto).thenApply(replyProto -> {
+          if (request instanceof GroupListRequest) {
+            return ClientProtoUtils.toGroupListReply(replyProto.getGroupListReply());
+          } else if (request instanceof GroupInfoRequest) {
+            return ClientProtoUtils.toGroupInfoReply(replyProto.getGroupInfoReply());
+          } else {
+            return ClientProtoUtils.toRaftClientReply(replyProto.getRaftClientReply());
           }
+        }).whenComplete((reply, e) -> {
           if (e == null) {
-            e = reply.getNotLeaderException();
+            if (reply == null) {
+              e = new NullPointerException("Both reply==null && e==null");
+            }
+            if (e == null) {
+              e = reply.getNotLeaderException();
+            }
+            if (e == null) {
+              e = reply.getLeaderNotReadyException();
+            }
           }
-          if (e == null) {
-            e = reply.getLeaderNotReadyException();
+
+          if (e != null) {
+            replyFuture.completeExceptionally(e);
+          } else {
+            replyFuture.complete(reply);
           }
-        }
+        });
 
-        if (e != null) {
-          replyFuture.completeExceptionally(e);
-        } else {
-          replyFuture.complete(reply);
-        }
-      });
+        scheduler.onTimeout(requestTimeout, () -> {
+            if (!replyFuture.isDone()) {
+              final String s = clientId + "->" + serverId + " request #" +
+                  callId + " timeout " + requestTimeout.getDuration();
+              replyFuture.completeExceptionally(new TimeoutIOException(s));
+            }
+          }, LOG, () -> "Timeout check for client request #" + callId);
 
-      scheduler.onTimeout(requestTimeout, () -> {
-          if (!replyFuture.isDone()) {
-            final String s = clientId + "->" + serverId + " request #" +
-                callId + " timeout " + requestTimeout.getDuration();
-            replyFuture.completeExceptionally(new TimeoutIOException(s));
-          }
-        }, LOG, () -> "Timeout check for client request #" + callId);
-
-      return replyFuture;
+        return replyFuture;
+      }, supplier);
     } catch (Throwable e) {
       return JavaUtils.completeExceptionally(e);
     }
@@ -111,17 +123,27 @@ public class NettyClientRpc extends RaftClientRpcWithProxy<NettyRpcProxy> {
 
     final RaftNettyServerRequestProto serverRequestProto = buildRequestProto(request);
     final RaftRpcRequestProto rpcRequest = getRpcRequestProto(serverRequestProto);
-    if (request instanceof GroupListRequest) {
-      return ClientProtoUtils.toGroupListReply(
-          proxy.send(rpcRequest, serverRequestProto).getGroupListReply());
-    } else if (request instanceof GroupInfoRequest) {
-      return ClientProtoUtils.toGroupInfoReply(
-          proxy.send(rpcRequest, serverRequestProto).getGroupInfoReply());
-    } else {
-      return ClientProtoUtils.toRaftClientReply(
-          proxy.send(rpcRequest, serverRequestProto).getRaftClientReply());
+
+    final Span span = new IpcClientSpanBuilder()
+        .setMethod(RaftRpcRequestProto.getDescriptor().getFullName() + "/" + request.getType().toString(),
+            request.getClass().getName() + "/sendRequest")
+        .setPeerId(serverId.toString())
+        .setProxyName(proxy.toString())
+        .build();
+    try (Scope scope = span.makeCurrent()) {
+      if (request instanceof GroupListRequest) {
+        return ClientProtoUtils.toGroupListReply(
+            proxy.send(rpcRequest, serverRequestProto).getGroupListReply());
+      } else if (request instanceof GroupInfoRequest) {
+        return ClientProtoUtils.toGroupInfoReply(
+            proxy.send(rpcRequest, serverRequestProto).getGroupInfoReply());
+      } else {
+        return ClientProtoUtils.toRaftClientReply(
+            proxy.send(rpcRequest, serverRequestProto).getRaftClientReply());
+      }
     }
   }
+
 
   private RaftNettyServerRequestProto buildRequestProto(RaftClientRequest request) {
     final RaftNettyServerRequestProto.Builder b = RaftNettyServerRequestProto.newBuilder();
