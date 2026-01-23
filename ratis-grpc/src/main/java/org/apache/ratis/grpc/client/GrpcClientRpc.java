@@ -122,10 +122,10 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
         span.addEvent(proto.getDescriptorForType().getFullName());
         return ClientProtoUtils.toRaftClientReply(proxy.groupAdd(proto));
       } else if (request instanceof SetConfigurationRequest) {
-        final SetConfigurationRequestProto setConf =
+        final SetConfigurationRequestProto proto =
             ClientProtoUtils.toSetConfigurationRequestProto((SetConfigurationRequest) request);
-        span.addEvent(setConf.getDescriptorForType().getFullName());
-        return ClientProtoUtils.toRaftClientReply(proxy.setConfiguration(setConf));
+        span.addEvent(proto.getDescriptorForType().getFullName());
+        return ClientProtoUtils.toRaftClientReply(proxy.setConfiguration(proto));
       } else if (request instanceof GroupListRequest) {
         final GroupListRequestProto proto = ClientProtoUtils.toGroupListRequestProto((GroupListRequest) request);
         span.addEvent(proto.getDescriptorForType().getFullName());
@@ -173,7 +173,7 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
       RaftClientRequest request, GrpcClientProtocolClient proxy, Span span) throws IOException {
     final RaftClientRequestProto requestProto =
         toRaftClientRequestProto(request);
-    span.addEvent(requestProto.getDescriptorForType().getFullName());
+    span.addEvent("Other/" + requestProto.getRpcRequest().getDescriptorForType().getFullName());
     final CompletableFuture<RaftClientReplyProto> replyFuture = new CompletableFuture<>();
     // create a new grpc stream for each non-async call.
     final StreamObserver<RaftClientRequestProto> requestObserver =
