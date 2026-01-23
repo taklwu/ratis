@@ -126,7 +126,7 @@ public class NettyClientRpc extends RaftClientRpcWithProxy<NettyRpcProxy> {
 
     final Span span = new IpcClientSpanBuilder()
         .setMethod(RaftRpcRequestProto.getDescriptor().getFullName() + "/" + request.getType().toString(),
-            request.getClass().getName() + "/sendRequest")
+            this.getClass().getName() + "/sendRequest")
         .setPeerId(serverId.toString())
         .setProxyName(proxy.toString())
         .build();

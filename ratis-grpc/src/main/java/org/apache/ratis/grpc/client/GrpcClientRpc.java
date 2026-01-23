@@ -119,31 +119,38 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
       if (request instanceof GroupManagementRequest) {
         final GroupManagementRequestProto proto =
             ClientProtoUtils.toGroupManagementRequestProto((GroupManagementRequest) request);
+        span.addEvent(proto.getDescriptorForType().getFullName());
         return ClientProtoUtils.toRaftClientReply(proxy.groupAdd(proto));
       } else if (request instanceof SetConfigurationRequest) {
         final SetConfigurationRequestProto setConf =
             ClientProtoUtils.toSetConfigurationRequestProto((SetConfigurationRequest) request);
+        span.addEvent(setConf.getDescriptorForType().getFullName());
         return ClientProtoUtils.toRaftClientReply(proxy.setConfiguration(setConf));
       } else if (request instanceof GroupListRequest) {
         final GroupListRequestProto proto = ClientProtoUtils.toGroupListRequestProto((GroupListRequest) request);
+        span.addEvent(proto.getDescriptorForType().getFullName());
         return ClientProtoUtils.toGroupListReply(proxy.groupList(proto));
       } else if (request instanceof GroupInfoRequest) {
         final GroupInfoRequestProto proto = ClientProtoUtils.toGroupInfoRequestProto((GroupInfoRequest) request);
+        span.addEvent(proto.getDescriptorForType().getFullName());
         return ClientProtoUtils.toGroupInfoReply(proxy.groupInfo(proto));
       } else if (request instanceof TransferLeadershipRequest) {
         final TransferLeadershipRequestProto proto =
             ClientProtoUtils.toTransferLeadershipRequestProto((TransferLeadershipRequest) request);
+        span.addEvent(proto.getDescriptorForType().getFullName());
         return ClientProtoUtils.toRaftClientReply(proxy.transferLeadership(proto));
       } else if (request instanceof SnapshotManagementRequest) {
         final SnapshotManagementRequestProto proto =
             ClientProtoUtils.toSnapshotManagementRequestProto((SnapshotManagementRequest) request);
+        span.addEvent(proto.getDescriptorForType().getFullName());
         return ClientProtoUtils.toRaftClientReply(proxy.snapshotManagement(proto));
       } else if (request instanceof LeaderElectionManagementRequest) {
         final LeaderElectionManagementRequestProto proto =
             ClientProtoUtils.toLeaderElectionManagementRequestProto((LeaderElectionManagementRequest) request);
+        span.addEvent(proto.getDescriptorForType().getFullName());
         return ClientProtoUtils.toRaftClientReply(proxy.leaderElectionManagement(proto));
       } else {
-        final CompletableFuture<RaftClientReply> f = sendRequest(request, proxy);
+        final CompletableFuture<RaftClientReply> f = sendRequest(request, proxy, span);
         // TODO: timeout support
         try {
           return f.get();
@@ -155,17 +162,18 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
             LOG.trace(clientId + ": failed " + request, e);
           }
           throw IOUtils.toIOException(e);
-        } finally {
-          span.end();
         }
       }
+    } finally {
+      span.end();
     }
   }
 
   private CompletableFuture<RaftClientReply> sendRequest(
-      RaftClientRequest request, GrpcClientProtocolClient proxy) throws IOException {
+      RaftClientRequest request, GrpcClientProtocolClient proxy, Span span) throws IOException {
     final RaftClientRequestProto requestProto =
         toRaftClientRequestProto(request);
+    span.addEvent(requestProto.getDescriptorForType().getFullName());
     final CompletableFuture<RaftClientReplyProto> replyFuture = new CompletableFuture<>();
     // create a new grpc stream for each non-async call.
     final StreamObserver<RaftClientRequestProto> requestObserver =
