@@ -46,3 +46,33 @@ if [[ -d "${CONF_DIR}" ]]; then
 else
   LOGGER_OPTS="-Dlog4j.configuration=file:${DIR}/../resources/log4j.properties"
 fi
+
+
+# for opentelemetry tests
+
+OTEL_JAR_DEFAULT="${SCRIPT_DIR}/../../../../ratis-assembly/target/apache-ratis-3.3.0-SNAPSHOT-bin/lib/trace/opentelemetry-javaagent-2.23.0.jar"
+
+if [[ -z "${OTEL_SERVICE_NAME}" ]]; then
+  OTEL_SERVICE_NAME="ratis.server"
+fi
+
+if [[ -z "${OTEL_DEFAULT_OPTS}" ]]; then
+  OTEL_DEFAULT_OPTS="-Dotel.traces.exporter=logging -Dotel.metrics.exporter=none"
+fi
+
+if [[ -n "${OTEL_JAR}" && -f "${OTEL_JAR}" ]]; then
+  : # use OTEL_JAR from environment
+elif [[ -f "${OTEL_JAR_DEFAULT}" ]]; then
+  OTEL_JAR="${OTEL_JAR_DEFAULT}"
+else
+  echo "Warning: OpenTelemetry agent jar not found; OTEL disabled"
+  OTEL_JAR=""
+fi
+
+if [[ -n "${OTEL_JAR}" ]]; then
+  OTEL_OPTS="-javaagent:${OTEL_JAR} -Dotel.resource.attributes=service.name=${OTEL_SERVICE_NAME} ${OTEL_DEFAULT_OPTS}"
+else
+  OTEL_OPTS=""
+fi
+
+echo "Using OTEL_OPTS: ${OTEL_OPTS}"

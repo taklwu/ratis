@@ -32,4 +32,4 @@ shift
 subcommand="$1"
 shift
 
-java ${LOGGER_OPTS} -jar $ARTIFACT "$example" "$subcommand" "$@"
+java ${OTEL_OPTS} ${LOGGER_OPTS} -jar $ARTIFACT "$example" "$subcommand" "$@"
