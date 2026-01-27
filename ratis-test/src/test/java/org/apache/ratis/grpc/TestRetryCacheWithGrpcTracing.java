@@ -87,5 +87,10 @@ public class TestRetryCacheWithGrpcTracing
         spans.stream().anyMatch(s -> s.getKind() == SpanKind.SERVER),
         "Expected at least one span with SpanKind.CLIENT"
     );
+
+    // this must fail as there are more than two spans created in the test
+    openTelemetryExtension.assertTraces().hasTracesSatisfyingExactly(
+        trace -> trace.hasSpansSatisfyingExactly(spanAssert -> spanAssert.hasName("raft.appendEntries")),
+        trace -> trace.hasSpansSatisfyingExactly(spanAssert -> spanAssert.hasName("test-appendEntries_emitsSpan")));
   }
 }
