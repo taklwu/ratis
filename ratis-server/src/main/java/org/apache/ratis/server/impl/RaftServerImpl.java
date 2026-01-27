@@ -1503,7 +1503,7 @@ class RaftServerImpl implements RaftServer.Division,
   @Override
   public AppendEntriesReplyProto appendEntries(AppendEntriesRequestProto r) throws IOException {
     final Context remoteContext = TraceUtil.extractContextFromProto(r.getServerRequest().getSpanContext());
-    final Span span = TraceUtil.createRemoteSpan("raft.appendEntries", remoteContext);
+    final Span span = TraceUtil.createRemoteSpan("raft.server.appendEntries", remoteContext);
     span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
     try (Scope scope = span.makeCurrent()) {
       span.setAttribute(RatisAttributes.ATTR_CALLER_ID, r.getServerRequest().getRequestorId().toString());

@@ -90,7 +90,7 @@ public class TestRetryCacheWithGrpcTracing
 
     // this must fail as there are more than two spans created in the test
     openTelemetryExtension.assertTraces().hasTracesSatisfyingExactly(
-        trace -> trace.hasSpansSatisfyingExactly(spanAssert -> spanAssert.hasName("raft.appendEntries")),
+        trace -> trace.hasSpansSatisfyingExactly(spanAssert -> spanAssert.hasName("raft.server.appendEntries")),
         trace -> trace.hasSpansSatisfyingExactly(spanAssert -> spanAssert.hasName("test-appendEntries_emitsSpan")));
   }
 }

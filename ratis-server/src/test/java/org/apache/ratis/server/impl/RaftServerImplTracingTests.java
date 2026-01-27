@@ -72,7 +72,7 @@ public class RaftServerImplTracingTests {
     assertEquals(2, spans.size());
     openTelemetryExtension.assertTraces().hasTracesSatisfyingExactly(
         trace -> trace.hasSpansSatisfyingExactly(
-            spanAssert -> spanAssert.hasName("raft.appendEntries")
+            spanAssert -> spanAssert.hasName("raft.server.appendEntries")
         ),
         trace -> trace.hasSpansSatisfyingExactly(
             spanAssert -> spanAssert.hasName("test-appendEntries_emitsSpan")
@@ -80,7 +80,7 @@ public class RaftServerImplTracingTests {
     );
 
     SpanData raftSpan = spans.stream()
-        .filter(s -> "raft.appendEntries".equals(s.getName()))
+        .filter(s -> "raft.server.appendEntries".equals(s.getName()))
         .findFirst().get();
 
     assertTrue(raftSpan.getAttributes().get(RatisAttributes.ATTR_MEMBER_ID).contains("peer1"));
