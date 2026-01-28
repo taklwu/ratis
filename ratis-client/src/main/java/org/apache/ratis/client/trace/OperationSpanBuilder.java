@@ -27,7 +27,7 @@ import io.opentelemetry.api.trace.SpanKind;
 import org.apache.ratis.protocol.RaftClientRequest;
 import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.trace.RatisAttributes;
-import org.apache.ratis.trace.TraceUtil;
+import org.apache.ratis.trace.TraceUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -71,7 +71,7 @@ public class OperationSpanBuilder implements Supplier<Span> {
   @SuppressWarnings("unchecked")
   public Span build() {
     final String name = attributes.getOrDefault(OPERATION_NAME, DEFAULT_OPERATION).toString();
-    final SpanBuilder builder = TraceUtil.getGlobalTracer().spanBuilder(name)
+    final SpanBuilder builder = TraceUtils.getGlobalTracer().spanBuilder(name)
         // TODO: what about clients embedded in Master/RegionServer/Gateways/&c?
         .setSpanKind(SpanKind.CLIENT);
     attributes.forEach((k, v) -> builder.setAttribute((AttributeKey<? super Object>) k, v));

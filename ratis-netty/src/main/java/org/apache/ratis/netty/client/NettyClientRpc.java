@@ -33,7 +33,7 @@ import org.apache.ratis.proto.RaftProtos.GroupManagementRequestProto;
 import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
 import org.apache.ratis.proto.netty.NettyProtos.RaftNettyServerRequestProto;
 import org.apache.ratis.protocol.exceptions.TimeoutIOException;
-import org.apache.ratis.trace.TraceUtil;
+import org.apache.ratis.trace.TraceUtils;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.TimeDuration;
 import org.apache.ratis.util.TimeoutExecutor;
@@ -72,7 +72,7 @@ public class NettyClientRpc extends RaftClientRpcWithProxy<NettyRpcProxy> {
               request.getClass().getName() + "/sendRequestAsync")
           .setProxyName(proxy.toString())
           .setPeerId(serverId.toString());
-      return TraceUtil.tracedFuture(() -> {
+      return TraceUtils.tracedFuture(() -> {
         proxy.sendAsync(serverRequestProto).thenApply(replyProto -> {
           if (request instanceof GroupListRequest) {
             return ClientProtoUtils.toGroupListReply(replyProto.getGroupListReply());

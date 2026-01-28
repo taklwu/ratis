@@ -105,7 +105,7 @@ import org.apache.ratis.statemachine.impl.TransactionContextImpl;
 import org.apache.ratis.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.ratis.thirdparty.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.ratis.trace.RatisAttributes;
-import org.apache.ratis.trace.TraceUtil;
+import org.apache.ratis.trace.TraceUtils;
 import org.apache.ratis.util.CodeInjectionForTesting;
 import org.apache.ratis.util.CollectionUtils;
 import org.apache.ratis.util.ConcurrentUtils;
@@ -951,8 +951,8 @@ class RaftServerImpl implements RaftServer.Division,
   @Override
   public CompletableFuture<RaftClientReply> submitClientRequestAsync(
       RaftClientRequest request) throws IOException {
-    final Context remoteContext = TraceUtil.extractContextFromProto(request.getSpanContext());
-    final Span span = TraceUtil.createRemoteSpan("raft.server.submitClientRequestAsync", remoteContext);
+    final Context remoteContext = TraceUtils.extractContextFromProto(request.getSpanContext());
+    final Span span = TraceUtils.createRemoteSpan("raft.server.submitClientRequestAsync", remoteContext);
     span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
     try (Scope ignored = span.makeCurrent()) {
       assertLifeCycleState(LifeCycle.States.RUNNING);
@@ -1003,7 +1003,7 @@ class RaftServerImpl implements RaftServer.Division,
         return messageStreamAsync(request);
       case WRITE:
       case FORWARD:
-        return TraceUtil.trace(() -> writeAsync(request), "raft.server.replyFuture.writeAsync");
+        return TraceUtils.trace(() -> writeAsync(request), "raft.server.replyFuture.writeAsync");
       default:
         throw new IllegalStateException("Unexpected request type: " + type + ", request=" + request);
     }
@@ -1194,8 +1194,8 @@ class RaftServerImpl implements RaftServer.Division,
   @Override
   public RaftClientReply submitClientRequest(RaftClientRequest request)
       throws IOException {
-    final Context remoteContext = TraceUtil.extractContextFromProto(request.getSpanContext());
-    final Span span = TraceUtil.createRemoteSpan("raft.server.submitClientRequest", remoteContext);
+    final Context remoteContext = TraceUtils.extractContextFromProto(request.getSpanContext());
+    final Span span = TraceUtils.createRemoteSpan("raft.server.submitClientRequest", remoteContext);
     span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
     try (Scope scope = span.makeCurrent()) {
       return waitForReply(request, submitClientRequestAsync(request));
@@ -1465,8 +1465,8 @@ class RaftServerImpl implements RaftServer.Division,
 
   @Override
   public RequestVoteReplyProto requestVote(RequestVoteRequestProto r) throws IOException {
-    final Context remoteContext = TraceUtil.extractContextFromProto(r.getServerRequest().getSpanContext());
-    final Span span = TraceUtil.createRemoteSpan("raft.server.requestVote", remoteContext);
+    final Context remoteContext = TraceUtils.extractContextFromProto(r.getServerRequest().getSpanContext());
+    final Span span = TraceUtils.createRemoteSpan("raft.server.requestVote", remoteContext);
     span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
     try (Scope scope = span.makeCurrent()) {
       span.setAttribute(RatisAttributes.ATTR_CALLER_ID, r.getServerRequest().getRequestorId().toString());
@@ -1534,8 +1534,8 @@ class RaftServerImpl implements RaftServer.Division,
 
   @Override
   public AppendEntriesReplyProto appendEntries(AppendEntriesRequestProto r) throws IOException {
-    final Context remoteContext = TraceUtil.extractContextFromProto(r.getServerRequest().getSpanContext());
-    final Span span = TraceUtil.createRemoteSpan("raft.server.appendEntries", remoteContext);
+    final Context remoteContext = TraceUtils.extractContextFromProto(r.getServerRequest().getSpanContext());
+    final Span span = TraceUtils.createRemoteSpan("raft.server.appendEntries", remoteContext);
     span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
     try (Scope scope = span.makeCurrent()) {
       span.setAttribute(RatisAttributes.ATTR_CALLER_ID, r.getServerRequest().getRequestorId().toString());
@@ -1556,11 +1556,11 @@ class RaftServerImpl implements RaftServer.Division,
   @Override
   public CompletableFuture<AppendEntriesReplyProto> appendEntriesAsync(AppendEntriesRequestProto r)
       throws IOException {
-    final Context remoteContext = TraceUtil.extractContextFromProto(r.getServerRequest().getSpanContext());
+    final Context remoteContext = TraceUtils.extractContextFromProto(r.getServerRequest().getSpanContext());
 //    LOG.warn("remoteContext: {}, and some more information = {}", remoteContext, remoteContext != null ?
 //        r.getServerRequest().getSpanContext() : "null remoteContext");
 
-    final Span span = TraceUtil.createRemoteSpan("raft.server.appendEntriesAsync", remoteContext);
+    final Span span = TraceUtils.createRemoteSpan("raft.server.appendEntriesAsync", remoteContext);
     span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
     try (Scope scope = span.makeCurrent()) {
       span.setAttribute(RatisAttributes.ATTR_CALLER_ID, r.getServerRequest().getRequestorId().toString());

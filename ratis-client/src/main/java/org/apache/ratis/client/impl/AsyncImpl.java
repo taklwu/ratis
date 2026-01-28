@@ -30,7 +30,7 @@ import org.apache.ratis.protocol.Message;
 import org.apache.ratis.protocol.RaftClientReply;
 import org.apache.ratis.protocol.RaftClientRequest;
 import org.apache.ratis.protocol.RaftPeerId;
-import org.apache.ratis.trace.TraceUtil;
+import org.apache.ratis.trace.TraceUtils;
 
 /** Async api implementations. */
 class AsyncImpl implements AsyncRpcApi {
@@ -45,7 +45,7 @@ class AsyncImpl implements AsyncRpcApi {
     final Supplier<Span> spanSupplier = new OperationSpanBuilder(server)
         .setOperationName("AsyncImpl::send")
         .setOperationType(type);
-    return TraceUtil.tracedFuture(() -> client.getOrderedAsync().send(type, message, server),
+    return TraceUtils.tracedFuture(() -> client.getOrderedAsync().send(type, message, server),
         spanSupplier);
   }
 

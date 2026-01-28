@@ -26,7 +26,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.SpanKind;
 import org.apache.ratis.trace.RatisAttributes;
-import org.apache.ratis.trace.TraceUtil;
+import org.apache.ratis.trace.TraceUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -67,7 +67,7 @@ public class RpcClientSpanBuilder implements Supplier<Span> {
 
   @SuppressWarnings("unchecked")
   public Span build() {
-    final SpanBuilder builder = TraceUtil.getGlobalTracer().spanBuilder(name)
+    final SpanBuilder builder = TraceUtils.getGlobalTracer().spanBuilder(name)
         .setSpanKind(SpanKind.CLIENT);
     attributes.forEach((k, v) -> builder.setAttribute((AttributeKey<? super Object>) k, v));
     return builder.startSpan();

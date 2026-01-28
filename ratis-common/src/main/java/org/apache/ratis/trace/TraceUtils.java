@@ -38,9 +38,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-public final class TraceUtil {
+public final class TraceUtils {
 
-  private TraceUtil() {
+  private TraceUtils() {
   }
 
   public static Tracer getGlobalTracer() {

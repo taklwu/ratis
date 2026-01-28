@@ -45,7 +45,7 @@ import org.apache.ratis.protocol.exceptions.ResourceUnavailableException;
 import org.apache.ratis.retry.RetryPolicy;
 import org.apache.ratis.thirdparty.com.google.common.cache.Cache;
 import org.apache.ratis.thirdparty.com.google.common.cache.CacheBuilder;
-import org.apache.ratis.trace.TraceUtil;
+import org.apache.ratis.trace.TraceUtils;
 import org.apache.ratis.util.CollectionUtils;
 import org.apache.ratis.util.IOUtils;
 import org.apache.ratis.util.JavaUtils;
@@ -292,7 +292,7 @@ public final class RaftClientImpl implements RaftClient {
       b.setLeaderId(getLeaderId())
        .setRepliedCallIds(repliedCallIds.get(callId));
     }
-    final SpanContextProto spanContext = TraceUtil.injectContextToProto(Context.current());
+    final SpanContextProto spanContext = TraceUtils.injectContextToProto(Context.current());
     // LOG.warn("spanContext: {}, and some more information = {}", spanContext, spanContext.getContextCount());
     return b.setClientId(clientId)
         .setGroupId(groupId)

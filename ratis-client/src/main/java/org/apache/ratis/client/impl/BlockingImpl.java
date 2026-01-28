@@ -42,7 +42,7 @@ import org.apache.ratis.protocol.exceptions.StateMachineException;
 import org.apache.ratis.protocol.exceptions.TransferLeadershipException;
 import org.apache.ratis.retry.RetryPolicy;
 import org.apache.ratis.rpc.CallId;
-import org.apache.ratis.trace.TraceUtil;
+import org.apache.ratis.trace.TraceUtils;
 import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -99,7 +99,7 @@ class BlockingImpl implements BlockingApi {
         .setOperationName("BlockingImpl::send")
         .setOperationType(type);
 
-    return TraceUtil.trace(() -> sendRequestWithRetry(() -> client.newRaftClientRequest(server, callId, message, type,
+    return TraceUtils.trace(() -> sendRequestWithRetry(() -> client.newRaftClientRequest(server, callId, message, type,
         null)), spanSupplier);
   }
 

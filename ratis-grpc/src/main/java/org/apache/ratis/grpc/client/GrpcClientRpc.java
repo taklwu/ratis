@@ -39,7 +39,7 @@ import org.apache.ratis.proto.RaftProtos.TransferLeadershipRequestProto;
 import org.apache.ratis.proto.RaftProtos.SnapshotManagementRequestProto;
 import org.apache.ratis.proto.RaftProtos.LeaderElectionManagementRequestProto;
 import org.apache.ratis.thirdparty.io.netty.handler.ssl.SslContext;
-import org.apache.ratis.trace.TraceUtil;
+import org.apache.ratis.trace.TraceUtils;
 import org.apache.ratis.util.IOUtils;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.PeerProxyMap;
@@ -78,7 +78,7 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
           .setProxyName(proxy.getName())
           .setPeerId(serverId.toString());
       // Reuse the same grpc stream for all async calls.
-      return TraceUtil.tracedFuture(() -> proxy.getOrderedStreamObservers().onNext(request),
+      return TraceUtils.tracedFuture(() -> proxy.getOrderedStreamObservers().onNext(request),
           supplier);
     } catch (Exception e) {
       return JavaUtils.completeExceptionally(e);
@@ -96,7 +96,7 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
           .setProxyName(proxy.getName())
           .setPeerId(serverId.toString());
       // Reuse the same grpc stream for all async calls.
-      return TraceUtil.tracedFuture(() -> proxy.getUnorderedAsyncStreamObservers().onNext(request),
+      return TraceUtils.tracedFuture(() -> proxy.getUnorderedAsyncStreamObservers().onNext(request),
           supplier);
     } catch (Exception e) {
       LOG.error(clientId + ": Failed " + request, e);

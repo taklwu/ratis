@@ -29,7 +29,7 @@ import org.apache.ratis.proto.RaftProtos.SpanContextProto;
 import org.apache.ratis.proto.RaftProtos.StaleReadRequestTypeProto;
 import org.apache.ratis.proto.RaftProtos.WatchRequestTypeProto;
 import org.apache.ratis.proto.RaftProtos.WriteRequestTypeProto;
-import org.apache.ratis.trace.TraceUtil;
+import org.apache.ratis.trace.TraceUtils;
 import org.apache.ratis.util.Preconditions;
 import org.apache.ratis.util.ProtoUtils;
 
@@ -417,7 +417,7 @@ public class RaftClientRequest extends RaftClientMessage {
         .setGroupId(groupId)
         .setCallId(callId)
         .setType(type)
-        .setSpanContext(TraceUtil.injectContextToProto(Context.current())));
+        .setSpanContext(TraceUtils.injectContextToProto(Context.current())));
   }
 
   /** Construct a request for sending to the Leader. */
@@ -430,7 +430,7 @@ public class RaftClientRequest extends RaftClientMessage {
         .setCallId(callId)
         .setType(type)
         .setTimeoutMs(timeoutMs)
-        .setSpanContext(TraceUtil.injectContextToProto(Context.current())));
+        .setSpanContext(TraceUtils.injectContextToProto(Context.current())));
   }
 
   private RaftClientRequest(Builder b) {
