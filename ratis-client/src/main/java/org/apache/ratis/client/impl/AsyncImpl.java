@@ -19,14 +19,18 @@ package org.apache.ratis.client.impl;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
+import io.opentelemetry.api.trace.Span;
 import org.apache.ratis.client.AsyncRpcApi;
+import org.apache.ratis.client.trace.OperationSpanBuilder;
 import org.apache.ratis.proto.RaftProtos;
 import org.apache.ratis.proto.RaftProtos.ReplicationLevel;
 import org.apache.ratis.protocol.Message;
 import org.apache.ratis.protocol.RaftClientReply;
 import org.apache.ratis.protocol.RaftClientRequest;
 import org.apache.ratis.protocol.RaftPeerId;
+import org.apache.ratis.trace.TraceUtil;
 
 /** Async api implementations. */
 class AsyncImpl implements AsyncRpcApi {
@@ -38,7 +42,11 @@ class AsyncImpl implements AsyncRpcApi {
 
   CompletableFuture<RaftClientReply> send(
       RaftClientRequest.Type type, Message message, RaftPeerId server) {
-    return client.getOrderedAsync().send(type, message, server);
+    final Supplier<Span> spanSupplier = new OperationSpanBuilder(server)
+        .setOperationName("AsyncImpl::send")
+        .setOperationType(type);
+    return TraceUtil.tracedFuture(() -> client.getOrderedAsync().send(type, message, server),
+        spanSupplier);
   }
 
   @Override

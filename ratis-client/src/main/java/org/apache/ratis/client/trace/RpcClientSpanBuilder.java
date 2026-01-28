@@ -25,8 +25,6 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanBuilder;
 import io.opentelemetry.api.trace.SpanKind;
-import org.apache.ratis.protocol.RaftClientRequest;
-import org.apache.ratis.thirdparty.com.google.protobuf.Descriptors;
 import org.apache.ratis.trace.RatisAttributes;
 import org.apache.ratis.trace.TraceUtil;
 
@@ -36,12 +34,12 @@ import java.util.function.Supplier;
 
 
 /**
- * Construct {@link Span} instances originating from the client side of an IPC.
+ * Construct {@link Span} instances originating from the client side of an RPC.
  * @see <a href=
  *      "https://github.com/open-telemetry/opentelemetry-specification/blob/3e380e249f60c3a5f68746f5e84d10195ba41a79/specification/trace/semantic_conventions/rpc.md">Semantic
  *      conventions for RPC spans</a>
  */
-public class IpcClientSpanBuilder implements Supplier<Span> {
+public class RpcClientSpanBuilder implements Supplier<Span> {
 
   private String name;
   private final Map<AttributeKey<?>, Object> attributes = new HashMap<>();
@@ -51,32 +49,25 @@ public class IpcClientSpanBuilder implements Supplier<Span> {
     return build();
   }
 
-  public IpcClientSpanBuilder setMethod(final String packageAndService, final String method) {
+  public RpcClientSpanBuilder setMethod(final String packageAndService, final String method) {
     this.name = buildSpanName(packageAndService, method);
-    populateMethodDescriptorAttributes(attributes, packageAndService, method);
+    setRpcAttributes(attributes, packageAndService, method);
     return this;
   }
 
-  public IpcClientSpanBuilder setPeerId(final String peerId) {
+  public RpcClientSpanBuilder setPeerId(final String peerId) {
     attributes.put(RatisAttributes.PEER_ID, peerId);
     return this;
   }
 
-  public IpcClientSpanBuilder setProxyName(final String proxyName) {
+  public RpcClientSpanBuilder setProxyName(final String proxyName) {
     attributes.put(RatisAttributes.RPC_PROXY_NAME, proxyName);
     return this;
   }
 
-//  public IpcClientSpanBuilder setRemoteAddress(final Address remoteAddress) {
-//    attributes.put(NET_PEER_NAME, remoteAddress.getHostName());
-//    attributes.put(NET_PEER_PORT, (long) remoteAddress.getPort());
-//    return this;
-//  }
-
   @SuppressWarnings("unchecked")
   public Span build() {
     final SpanBuilder builder = TraceUtil.getGlobalTracer().spanBuilder(name)
-        // TODO: what about clients embedded in Master/RegionServer/Gateways/&c?
         .setSpanKind(SpanKind.CLIENT);
     attributes.forEach((k, v) -> builder.setAttribute((AttributeKey<? super Object>) k, v));
     return builder.startSpan();
@@ -86,29 +77,12 @@ public class IpcClientSpanBuilder implements Supplier<Span> {
    * Static utility method that performs the primary logic of this builder. It is visible to other
    * classes in this package so that other builders can use this functionality as a mix-in.
    * @param attributes the attributes map to be populated.
-   * @param md         the source of the RPC attribute values.
    */
-  static void populateMethodDescriptorAttributes(final Map<AttributeKey<?>, Object> attributes,
+  static void setRpcAttributes(final Map<AttributeKey<?>, Object> attributes,
       final String packageAndService, final String method) {
     attributes.put(RPC_SYSTEM, RatisAttributes.RpcSystem.RATIS_RPC.name());
     attributes.put(RPC_SERVICE, packageAndService);
     attributes.put(RPC_METHOD, method);
-  }
-
-  /**
-   * Retrieve the combined {@code $package.$service} value from {@code sd}.
-   */
-  public static String getRpcPackageAndService(final Descriptors.ServiceDescriptor sd) {
-    // it happens that `getFullName` returns a string in the $package.$service format required by
-    // the otel RPC specification. Use it for now; might have to parse the value in the future.
-    return sd.getFullName();
-  }
-
-  /**
-   * Retrieve the {@code $method} value from {@code md}.
-   */
-  public static String getRpcName(final Descriptors.MethodDescriptor md) {
-    return md.getName();
   }
 
   /**

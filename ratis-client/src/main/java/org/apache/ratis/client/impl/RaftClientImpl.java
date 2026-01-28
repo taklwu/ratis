@@ -293,6 +293,7 @@ public final class RaftClientImpl implements RaftClient {
        .setRepliedCallIds(repliedCallIds.get(callId));
     }
     final SpanContextProto spanContext = TraceUtil.injectContextToProto(Context.current());
+    // LOG.warn("spanContext: {}, and some more information = {}", spanContext, spanContext.getContextCount());
     return b.setClientId(clientId)
         .setGroupId(groupId)
         .setCallId(callId)

@@ -21,7 +21,7 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.context.Scope;
 import org.apache.ratis.client.impl.ClientProtoUtils;
 import org.apache.ratis.client.impl.RaftClientRpcWithProxy;
-import org.apache.ratis.client.trace.IpcClientSpanBuilder;
+import org.apache.ratis.client.trace.RpcClientSpanBuilder;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.grpc.GrpcUtil;
@@ -72,7 +72,7 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
     final RaftPeerId serverId = request.getServerId();
     try {
       final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
-      final Supplier<Span> supplier = new IpcClientSpanBuilder()
+      final Supplier<Span> supplier = new RpcClientSpanBuilder()
           .setMethod(request.getType().toString(),
           request.getClass().getName() + "/sendRequestAsync")
           .setProxyName(proxy.getName())
@@ -90,7 +90,7 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
     final RaftPeerId serverId = request.getServerId();
     try {
       final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
-      final Supplier<Span> supplier = new IpcClientSpanBuilder()
+      final Supplier<Span> supplier = new RpcClientSpanBuilder()
           .setMethod(request.getType().toString(),
               request.getClass().getName() + "/sendRequestAsyncUnordered")
           .setProxyName(proxy.getName())
@@ -109,7 +109,7 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
       throws IOException {
     final RaftPeerId serverId = request.getServerId();
     final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
-    final Span span = new IpcClientSpanBuilder()
+    final Span span = new RpcClientSpanBuilder()
         .setMethod(request.getType().toString(),
             request.getClass().getName() + "/sendRequest")
         .setPeerId(serverId.toString())

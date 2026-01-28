@@ -60,10 +60,11 @@ if [[ -z "${OTEL_DEFAULT_OPTS}" ]]; then
   OTEL_DEFAULT_OPTS="-Dotel.traces.exporter=logging -Dotel.metrics.exporter=none"
 fi
 
-if [[ -n "${OTEL_JAR}" && -f "${OTEL_JAR}" ]]; then
-  : # use OTEL_JAR from environment
+if [[ -n "${OTEL_JAR}" && -f "${OTEL_JAR}" ]]; then # use OTEL_JAR from environment
+  echo "Using OTEL_JAR from environment: ${OTEL_JAR}"
 elif [[ -f "${OTEL_JAR_DEFAULT}" ]]; then
   OTEL_JAR="${OTEL_JAR_DEFAULT}"
+  echo "Using OTEL_JAR from OTEL_JAR_DEFAULT = : ${OTEL_JAR}"
 else
   echo "Warning: OpenTelemetry agent jar not found; OTEL disabled"
   OTEL_JAR=""

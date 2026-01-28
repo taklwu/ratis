@@ -22,7 +22,7 @@ import io.opentelemetry.context.Scope;
 import org.apache.ratis.client.RaftClientConfigKeys;
 import org.apache.ratis.client.impl.ClientProtoUtils;
 import org.apache.ratis.client.impl.RaftClientRpcWithProxy;
-import org.apache.ratis.client.trace.IpcClientSpanBuilder;
+import org.apache.ratis.client.trace.RpcClientSpanBuilder;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.netty.NettyRpcProxy;
 import org.apache.ratis.protocol.*;
@@ -67,7 +67,7 @@ public class NettyClientRpc extends RaftClientRpcWithProxy<NettyRpcProxy> {
       final RaftNettyServerRequestProto serverRequestProto = buildRequestProto(request);
       final CompletableFuture<RaftClientReply> replyFuture = new CompletableFuture<>();
 
-      final Supplier<Span> supplier = new IpcClientSpanBuilder()
+      final Supplier<Span> supplier = new RpcClientSpanBuilder()
           .setMethod(serverRequestProto.getDescriptorForType().getFullName() + "/" + request.getType().toString(),
               request.getClass().getName() + "/sendRequestAsync")
           .setProxyName(proxy.toString())
@@ -124,7 +124,7 @@ public class NettyClientRpc extends RaftClientRpcWithProxy<NettyRpcProxy> {
     final RaftNettyServerRequestProto serverRequestProto = buildRequestProto(request);
     final RaftRpcRequestProto rpcRequest = getRpcRequestProto(serverRequestProto);
 
-    final Span span = new IpcClientSpanBuilder()
+    final Span span = new RpcClientSpanBuilder()
         .setMethod(RaftRpcRequestProto.getDescriptor().getFullName() + "/" + request.getType().toString(),
             this.getClass().getName() + "/sendRequest")
         .setPeerId(serverId.toString())

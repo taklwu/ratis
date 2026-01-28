@@ -23,8 +23,10 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import io.opentelemetry.api.trace.Span;
 import org.apache.ratis.client.api.BlockingApi;
 import org.apache.ratis.client.retry.ClientRetryEvent;
+import org.apache.ratis.client.trace.OperationSpanBuilder;
 import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto.TypeCase;
 import org.apache.ratis.proto.RaftProtos.ReplicationLevel;
 import org.apache.ratis.protocol.Message;
@@ -40,6 +42,7 @@ import org.apache.ratis.protocol.exceptions.StateMachineException;
 import org.apache.ratis.protocol.exceptions.TransferLeadershipException;
 import org.apache.ratis.retry.RetryPolicy;
 import org.apache.ratis.rpc.CallId;
+import org.apache.ratis.trace.TraceUtil;
 import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,7 +95,12 @@ class BlockingImpl implements BlockingApi {
     }
 
     final long callId = CallId.getAndIncrement();
-    return sendRequestWithRetry(() -> client.newRaftClientRequest(server, callId, message, type, null));
+    final Supplier<Span> spanSupplier = new OperationSpanBuilder(server)
+        .setOperationName("BlockingImpl::send")
+        .setOperationType(type);
+
+    return TraceUtil.trace(() -> sendRequestWithRetry(() -> client.newRaftClientRequest(server, callId, message, type,
+        null)), spanSupplier);
   }
 
   RaftClientReply sendRequestWithRetry(Supplier<RaftClientRequest> supplier) throws IOException {

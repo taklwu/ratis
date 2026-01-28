@@ -951,16 +951,41 @@ class RaftServerImpl implements RaftServer.Division,
   @Override
   public CompletableFuture<RaftClientReply> submitClientRequestAsync(
       RaftClientRequest request) throws IOException {
-    assertLifeCycleState(LifeCycle.States.RUNNING);
-    LOG.debug("{}: receive client request({})", getMemberId(), request);
-    final Timekeeper timer = raftServerMetrics.getClientRequestTimer(request.getType());
-    final Optional<Timekeeper.Context> timerContext = Optional.ofNullable(timer).map(Timekeeper::time);
-    return replyFuture(request).whenComplete((clientReply, exception) -> {
-      timerContext.ifPresent(Timekeeper.Context::stop);
-      if (exception != null || clientReply.getException() != null) {
-        raftServerMetrics.incFailedRequestCount(request.getType());
-      }
-    });
+    final Context remoteContext = TraceUtil.extractContextFromProto(request.getSpanContext());
+    final Span span = TraceUtil.createRemoteSpan("raft.server.submitClientRequestAsync", remoteContext);
+    span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
+    try (Scope ignored = span.makeCurrent()) {
+      assertLifeCycleState(LifeCycle.States.RUNNING);
+      LOG.debug("{}: receive client request({})", getMemberId(), request);
+      final Timekeeper timer = raftServerMetrics.getClientRequestTimer(request.getType());
+      final Optional<Timekeeper.Context> timerContext = Optional.ofNullable(timer).map(Timekeeper::time);
+      span.addEvent("Processed client request");
+      final CompletableFuture<RaftClientReply> future = replyFuture(request);
+      return future.whenComplete((clientReply, exception) -> {
+        try (Scope s = span.makeCurrent()) {
+          timerContext.ifPresent(Timekeeper.Context::stop);
+          if (exception != null || (clientReply != null && clientReply.getException() != null)) {
+            raftServerMetrics.incFailedRequestCount(request.getType());
+          }
+          if (exception != null) {
+            span.recordException(exception);
+            span.setStatus(StatusCode.ERROR, exception.getMessage());
+          } else if (clientReply != null && clientReply.getException() != null) {
+            span.recordException(clientReply.getException());
+            span.setStatus(StatusCode.ERROR, clientReply.getException().getMessage());
+          }
+
+        } finally {
+          span.addEvent("Completed client request");
+          span.end();
+        }
+      });
+    } catch (IOException e) {
+      span.recordException(e);
+      span.setStatus(StatusCode.ERROR, e.getMessage());
+      span.end();
+      throw e;
+    }
   }
 
   private CompletableFuture<RaftClientReply> replyFuture(RaftClientRequest request) throws IOException {
@@ -978,7 +1003,7 @@ class RaftServerImpl implements RaftServer.Division,
         return messageStreamAsync(request);
       case WRITE:
       case FORWARD:
-        return writeAsync(request);
+        return TraceUtil.trace(() -> writeAsync(request), "raft.server.replyFuture.writeAsync");
       default:
         throw new IllegalStateException("Unexpected request type: " + type + ", request=" + request);
     }
@@ -1169,7 +1194,14 @@ class RaftServerImpl implements RaftServer.Division,
   @Override
   public RaftClientReply submitClientRequest(RaftClientRequest request)
       throws IOException {
-    return waitForReply(request, submitClientRequestAsync(request));
+    final Context remoteContext = TraceUtil.extractContextFromProto(request.getSpanContext());
+    final Span span = TraceUtil.createRemoteSpan("raft.server.submitClientRequest", remoteContext);
+    span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
+    try (Scope scope = span.makeCurrent()) {
+      return waitForReply(request, submitClientRequestAsync(request));
+    } finally {
+      span.end();
+    }
   }
 
   RaftClientReply waitForReply(RaftClientRequest request, CompletableFuture<RaftClientReply> future)
@@ -1434,7 +1466,7 @@ class RaftServerImpl implements RaftServer.Division,
   @Override
   public RequestVoteReplyProto requestVote(RequestVoteRequestProto r) throws IOException {
     final Context remoteContext = TraceUtil.extractContextFromProto(r.getServerRequest().getSpanContext());
-    final Span span = TraceUtil.createRemoteSpan("raft.requestVote", remoteContext);
+    final Span span = TraceUtil.createRemoteSpan("raft.server.requestVote", remoteContext);
     span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
     try (Scope scope = span.makeCurrent()) {
       span.setAttribute(RatisAttributes.ATTR_CALLER_ID, r.getServerRequest().getRequestorId().toString());
@@ -1523,6 +1555,26 @@ class RaftServerImpl implements RaftServer.Division,
 
   @Override
   public CompletableFuture<AppendEntriesReplyProto> appendEntriesAsync(AppendEntriesRequestProto r)
+      throws IOException {
+    final Context remoteContext = TraceUtil.extractContextFromProto(r.getServerRequest().getSpanContext());
+//    LOG.warn("remoteContext: {}, and some more information = {}", remoteContext, remoteContext != null ?
+//        r.getServerRequest().getSpanContext() : "null remoteContext");
+
+    final Span span = TraceUtil.createRemoteSpan("raft.server.appendEntriesAsync", remoteContext);
+    span.setAttribute(RatisAttributes.ATTR_MEMBER_ID, getMemberId().toString());
+    try (Scope scope = span.makeCurrent()) {
+      span.setAttribute(RatisAttributes.ATTR_CALLER_ID, r.getServerRequest().getRequestorId().toString());
+      return this.appendEntriesAsyncInternal(r);
+    } catch (IOException | RuntimeException e) {
+      span.recordException(e);
+      span.setStatus(StatusCode.ERROR, e.getMessage());
+      throw e;
+    } finally {
+      span.end();
+    }
+  }
+
+  private CompletableFuture<AppendEntriesReplyProto> appendEntriesAsyncInternal(AppendEntriesRequestProto r)
       throws IOException {
     final RaftRpcRequestProto request = r.getServerRequest();
     final TermIndex previous = r.hasPreviousLog()? TermIndex.valueOf(r.getPreviousLog()) : null;

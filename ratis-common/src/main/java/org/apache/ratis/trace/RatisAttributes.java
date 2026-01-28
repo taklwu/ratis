@@ -35,6 +35,9 @@ public final class RatisAttributes {
   public static final AttributeKey<String> RPC_METHOD = AttributeKey.stringKey("rpc.method");
   public static final AttributeKey<String> PEER_ID = AttributeKey.stringKey("rpc.peer.id");
   public static final AttributeKey<String> RPC_PROXY_NAME = AttributeKey.stringKey("rpc.proxy.name");
+  public static final AttributeKey<String> OPERATION_NAME = AttributeKey.stringKey("ratis.operation.name");
+  public static final AttributeKey<String> OPERATION_TYPE = AttributeKey.stringKey("ratis.operation.type");
+
 
   /**
    * These are values used with {@link #RPC_SYSTEM}. Only a single value for now; more to come as we
